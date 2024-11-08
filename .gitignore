@@ -1,0 +1,5 @@
+# macOS のシステムファイル
+.DS_Store
+
+# JetBrains IDE の設定フォルダー
+.idea/
