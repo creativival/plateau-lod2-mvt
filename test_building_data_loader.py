@@ -17,8 +17,8 @@ if __name__ == '__main__':
                 print(f"Coordinates 4D: {building.coordinates_4d}")
 
             print(f"Simplified Coordinates:")
-            if building.simplified_coordinates_3d:
-                print(f"Simplified 3D: {building.simplified_coordinates_3d}")
+            if building.simplified_coordinates:
+                print(f"Simplified 3D: {building.simplified_coordinates}")
             if building.simplified_coordinates_4d:
                 print(f"Simplified 4D: {building.simplified_coordinates_4d}")
 

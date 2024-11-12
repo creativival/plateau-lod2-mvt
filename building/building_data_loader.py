@@ -1,19 +1,20 @@
 from mapbox_vector_tile import decode
 import os
-from shapely.geometry import Polygon, MultiPolygon, LinearRing, Point
+import math
 from .building import Building
 # 必要なインポートを追加
 from shapely.geometry import Polygon, MultiPolygon, LinearRing, Point
-import math
 
 
 class BuildingDataLoader:
     vertex_count = 0
     simplified_vertex_count = 0
+    all_building_count = 0
+    rect_building_count = 0
+    not_rect_building_count = 0
 
     @staticmethod
     def load_buildings(z, x, y):
-
         # PBFファイルのパス
         pbf_file = f'{z}/{x}/{y}.pbf'
 
@@ -47,37 +48,31 @@ class BuildingDataLoader:
 
             # Buildingインスタンスの作成
             if depth == 3:
-                building = Building(id_value, coordinates_3d=coordinates, height=height)
+                building = BuildingDataLoader.instancing_building(id_value, coordinates, height)
+                building_list.append(building)
             elif depth == 4:
-                building = Building(id_value, coordinates_4d=coordinates, height=height)
+                # print(f"depth 4 coordinates len: {len(coordinates)}")
+                for coords in coordinates:
+                    building = BuildingDataLoader.instancing_building(id_value, coords, height)
+                    building_list.append(building)
             else:
                 print(f"Unexpected coordinates depth ({depth}) for building ID {id_value}")
-                building = Building(id_value, height=height)
-
-            # 座標の簡略化と重心・半径の計算
-            if depth == 3:
-                simplified_coords, centroid, radius = BuildingDataLoader.process_coordinates(coordinates)
-                building.simplified_coordinates_3d = simplified_coords
-                building.centroid = centroid
-                building.bounding_circle_radius = radius
-            elif depth == 4:
-                simplified_coords_list = []
-                all_points = []
-                # 4D座標の場合、複数のポリゴンがある
-                for coords in coordinates:
-                    simplified_coords, centroid, radius = BuildingDataLoader.process_coordinates(coords)
-                    simplified_coords_list.append(simplified_coords)
-                    all_points.extend([Point(pt) for ring in coords for pt in ring])
-                building.simplified_coordinates_4d = simplified_coords_list
-                # 全てのポイントから重心と半径を計算
-                overall_centroid = BuildingDataLoader.calculate_centroid(all_points)
-                overall_radius = BuildingDataLoader.calculate_bounding_circle_radius(all_points, overall_centroid)
-                building.centroid = (overall_centroid.x, overall_centroid.y)
-                building.bounding_circle_radius = overall_radius
-
-            building_list.append(building)
+                # building = Building(id_value, height=height)
 
         return building_list
+
+    @staticmethod
+    def instancing_building(id_value, coordinates, height):
+        building = Building(id_value, coordinates=coordinates, height=height)
+        simplified_coords, centroid, radius, rect_params = \
+            BuildingDataLoader.process_coordinates(building.coordinates)
+        building.simplified_coordinates = simplified_coords
+        building.centroid = centroid
+        building.bounding_circle_radius = radius
+        # 長方形パラメータを設定
+        building.rect_width, building.rect_height, building.rect_angle = rect_params
+
+        return building
 
     @staticmethod
     def process_coordinates(coords):
@@ -89,17 +84,9 @@ class BuildingDataLoader:
         tolerance = 30  # 必要に応じて調整
 
         # ポリゴンの簡略化
-        # simplified_polygon = polygon
-        simplified_polygon = polygon.simplify(tolerance, preserve_topology=True)
+        simplified_polygon = polygon
+        # simplified_polygon = polygon.simplify(tolerance, preserve_topology=True)
         # simplified_polygon = polygon.convex_hull
-        # # 頂点数を制限して簡略化
-        # simplified_polygon = BuildingDataLoader.simplify_polygon_to_target_vertices(polygon, target_vertices=6)
-
-        # 結果を表示
-        print("元の頂点数:", len(polygon.exterior.coords))
-        print("簡略化後の頂点数:", len(simplified_polygon.exterior.coords))
-        BuildingDataLoader.vertex_count = BuildingDataLoader.vertex_count + len(polygon.exterior.coords)
-        BuildingDataLoader.simplified_vertex_count = BuildingDataLoader.simplified_vertex_count + len(simplified_polygon.exterior.coords)
 
         # 簡略化した座標を取得
         simplified_coords = [list(simplified_polygon.exterior.coords)]
@@ -112,7 +99,45 @@ class BuildingDataLoader:
         all_points = [Point(pt) for pt in simplified_polygon.exterior.coords]
         radius = BuildingDataLoader.calculate_bounding_circle_radius(all_points, centroid)
 
-        return simplified_coords, centroid_coords, radius
+        # 元の頂点数と簡略化後の頂点数を記録
+        # print("元の頂点数:", len(polygon.exterior.coords))
+        # print("簡略化後の頂点数:", len(simplified_polygon.exterior.coords))
+        BuildingDataLoader.vertex_count += len(polygon.exterior.coords)
+        BuildingDataLoader.simplified_vertex_count += len(simplified_polygon.exterior.coords)
+
+        # 四辺形の場合、長方形パラメータを計算
+        rect_width = rect_height = rect_angle = None
+        if len(simplified_polygon.exterior.coords) == 5:  # 最後の点が閉じるため4つの頂点
+            min_rect = simplified_polygon.minimum_rotated_rectangle
+            rect_coords = list(min_rect.exterior.coords)
+            # 最小外接長方形の4つの頂点
+            rect_points = rect_coords[:-1]  # 最後の閉じる点を除く
+
+            # 2点間の距離を計算して幅と高さを決定
+            edge_lengths = []
+            for i in range(4):
+                p1 = rect_points[i]
+                p2 = rect_points[(i + 1) % 4]
+                edge_length = math.hypot(p2[0] - p1[0], p2[1] - p1[1])
+                edge_lengths.append(edge_length)
+
+            # 幅と高さを長さの小さい順に割り当て
+            sorted_lengths = sorted(edge_lengths)
+            rect_width, rect_height = sorted_lengths[:2]
+
+            # 回転角度を計算（最初のエッジの角度）
+            p1, p2 = rect_points[0], rect_points[1]
+            delta_x = p2[0] - p1[0]
+            delta_y = p2[1] - p1[1]
+            rect_angle = math.degrees(math.atan2(delta_y, delta_x))
+
+            BuildingDataLoader.rect_building_count += 1
+        else:
+            BuildingDataLoader.not_rect_building_count += 1
+
+        BuildingDataLoader.all_building_count += 1
+
+        return simplified_coords, centroid_coords, radius, (rect_width, rect_height, rect_angle)
 
     @staticmethod
     def calculate_centroid(points):
@@ -141,13 +166,4 @@ class BuildingDataLoader:
             return 1 + max(BuildingDataLoader.get_list_depth(item) for item in lst)
         else:
             return 0
-
-    @staticmethod
-    def simplify_polygon_to_target_vertices(polygon, target_vertices=8):
-        tolerance = 0.0001
-        simplified = polygon.simplify(tolerance, preserve_topology=True)
-        while len(simplified.exterior.coords) > target_vertices:
-            tolerance *= 1.5  # 誤差を増やす
-            simplified = polygon.simplify(tolerance, preserve_topology=True)
-        return simplified
 

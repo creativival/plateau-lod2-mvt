@@ -5,9 +5,12 @@ from building.camera import CameraController  # CameraControllerをインポー�
 
 
 class MyApp(ShowBase):
-    min_height = 20  # 表示する建物の最低高さ
+    # ワイヤーフレームモードを切り替えるフラグ
+    # DRAW_WIREFRAME = True  # Trueにするとワイヤーフレーム、Falseにすると面を描画
+    DRAW_WIREFRAME = False  # Trueにするとワイヤーフレーム、Falseにすると面を描画
+    min_height = 0  # 表示する建物の最低高さ
 
-    def __init__(self):
+    def __init__(self, z, x, y):
         ShowBase.__init__(self)
 
         # 座標軸を表示する
@@ -35,45 +38,138 @@ class MyApp(ShowBase):
         self.buildings_node.setPos(-2038, -2048, 0)
         self.buildings_node.setScale(0.8119, 0.9245, 1)
 
-        # タイル座標を指定
-        z = 16
-        x = 58199
-        y = 25811
-
-        # ワイヤーフレームモードを切り替えるフラグ
-        DRAW_WIREFRAME = True  # Trueにするとワイヤーフレーム、Falseにすると面を描画
-        # DRAW_WIREFRAME = False  # Trueにするとワイヤーフレーム、Falseにすると面を描画
-
         # 建物データをロード
         self.building_list = BuildingDataLoader.load_buildings(z, x, y)
 
         # 建物データから3Dモデルを作成
         building_count = 0
+        rect_building_count = 0
+        not_rect_building_count = 0
         for building in self.building_list:
+            building_count += 1
             # ビル用のノードを作成し、名前をIDに設定
             building.building_node = self.buildings_node.attachNewNode(str(building.id))
 
-            if building.height < self.min_height:
-                continue
+            # if building.height < self.min_height:
+            #     continue
 
-            if building.simplified_coordinates_3d:
-                building_count = building_count + 1
-                self.create_building(building.building_node, building.simplified_coordinates_3d, building.height,
-                                     color=(1, 0.5, 0, 1), wireframe=DRAW_WIREFRAME)  # オレンジ色
-            elif building.simplified_coordinates_4d:
-                building_count = building_count + 1
-                for coords in building.simplified_coordinates_4d:
-                    self.create_building(building.building_node, coords, building.height, color=(0, 1, 1, 1),
-                                         wireframe=DRAW_WIREFRAME)  # 水色
+            if building.rect_width is not None:
+                rect_params = (building.rect_width, building.rect_height, building.rect_angle)
+                rect_building_count += 1
+                self.create_rect_building(
+                    building.building_node,
+                    rect_params,
+                    building.centroid,
+                    building.height,
+                    color=(0, 1, 1, 1),  # シアン色
+                    wireframe=self.DRAW_WIREFRAME
+                )
+            elif building.simplified_coordinates:
+                not_rect_building_count += 1
+                self.create_building(
+                    building.building_node,
+                    building.simplified_coordinates,
+                    building.height,
+                    color=(1, 0.5, 0, 1),  # オレンジ色
+                    wireframe=self.DRAW_WIREFRAME
+                )
             else:
                 # 座標がない場合はスキップ
                 continue
+
+        print(f"ビル数: {BuildingDataLoader.all_building_count}")
+        print(f"長方形のビル数: {BuildingDataLoader.rect_building_count}")
+        print('長方形ではないビル数:', BuildingDataLoader.not_rect_building_count)
+
+        print(f"building_list count: {len(self.building_list)}")
         print(f"Total buildings: {building_count}")
+        print(f"Total rect buildings: {rect_building_count}")
+        print(f"Total not rect buildings: {not_rect_building_count}")
 
         print(f'Polygon vertices: {BuildingDataLoader.vertex_count}')
         print(f'Simplified polygon vertices: {BuildingDataLoader.simplified_vertex_count}')
 
         self.accept('escape', exit)
+
+    def create_rect_building(self, building_node, rect_params, centroid, height, color=(1, 1, 1, 1), wireframe=False):
+        # 長方形のジオメトリを作成
+        rect_geom = self.create_box_geom(rect_params, color)
+
+        # シーンに新しいノードとしてアタッチ
+        rect_geom.reparentTo(building_node)
+
+        # 位置の設定
+        rect_geom.setPos(centroid[0], centroid[1], 0)
+
+        # 回転の設定（ヒンジ角度）
+        rect_geom.setH(rect_params[2])  # rect_params[2]が回転角度（度単位）
+
+        # ワイヤーフレームと面の切り替え
+        if wireframe:
+            rect_geom.setRenderModeWireframe()
+            rect_geom.setTwoSided(True)
+        else:
+            rect_geom.setRenderModeFilled()
+
+        # ビルノードの高さを設定
+        building_node.setSz(height)
+
+    def create_box_geom(self, rect_params, color=(1, 1, 1, 1)):
+        """
+        箱型ジオメトリを作成します。
+        """
+        width = rect_params[0]
+        length = rect_params[1]
+
+        format = GeomVertexFormat.getV3c4()
+        vdata = GeomVertexData('box', format, Geom.UHStatic)
+        vertex = GeomVertexWriter(vdata, 'vertex')
+        color_writer = GeomVertexWriter(vdata, 'color')
+
+        # キューブの8頂点
+        vertices = [
+            (-width / 2, -length / 2, 0),
+            (width / 2, -length / 2, 0),
+            (width / 2, length / 2, 0),
+            (-width / 2, length / 2, 0),
+            (-width / 2, -length / 2, 1),
+            (width / 2, -length / 2, 1),
+            (width / 2, length / 2, 1),
+            (-width / 2, length / 2, 1),
+        ]
+
+        # 各頂点に色を設定（白色）
+        for v in vertices:
+            vertex.addData3f(*v)
+            color_writer.addData4f(*color)
+
+        # 各面を三角形で定義
+        triangles = GeomTriangles(Geom.UHStatic)
+        # 下面
+        triangles.addVertices(0, 1, 2)
+        triangles.addVertices(0, 2, 3)
+        # 上面
+        triangles.addVertices(4, 6, 5)
+        triangles.addVertices(4, 7, 6)
+        # 前面
+        triangles.addVertices(0, 4, 5)
+        triangles.addVertices(0, 5, 1)
+        # 背面
+        triangles.addVertices(3, 2, 6)
+        triangles.addVertices(3, 6, 7)
+        # 左面
+        triangles.addVertices(0, 3, 7)
+        triangles.addVertices(0, 7, 4)
+        # 右面
+        triangles.addVertices(1, 5, 6)
+        triangles.addVertices(1, 6, 2)
+
+        geom = Geom(vdata)
+        geom.addPrimitive(triangles)
+        geom_node = GeomNode('box_geom')
+        geom_node.addGeom(geom)
+        box_node = NodePath(geom_node)
+        return box_node
 
     def create_building(self, building_node, coords_list, height, color=(1, 1, 1, 1), wireframe=False):
         # 上面のポリゴンを作成
@@ -84,7 +180,7 @@ class MyApp(ShowBase):
         top_node_path.setPos(0, 0, 1)  # 基準高さ（=1）分だけ移動
 
         # 側面を作成
-        side_geom = self.create_side_geom(coords_list, height, color)
+        side_geom = self.create_side_geom(coords_list, color)
         side_node = GeomNode('side_faces')
         side_node.addGeom(side_geom)
         side_node_path = building_node.attachNewNode(side_node)
@@ -125,7 +221,7 @@ class MyApp(ShowBase):
         geom.addPrimitive(tris)
         return geom
 
-    def create_side_geom(self, coords_list, height, color=(1, 1, 1, 1)):
+    def create_side_geom(self, coords_list, color=(1, 1, 1, 1)):
         # 側面のジオメトリを作成する
         format = GeomVertexFormat.getV3c4()
         vdata = GeomVertexData('side_faces', format, Geom.UHStatic)
@@ -169,5 +265,10 @@ class MyApp(ShowBase):
 
 
 if __name__ == '__main__':
-    app = MyApp()
+    # タイル座標を指定
+    Z = 16
+    X = 58199
+    Y = 25811
+
+    app = MyApp(Z, X, Y)
     app.run()
