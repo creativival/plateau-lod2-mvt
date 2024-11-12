@@ -13,6 +13,13 @@ class MyApp(ShowBase):
     def __init__(self, z, x, y):
         ShowBase.__init__(self)
 
+        # 全てを配置するノード
+        self.world_node = self.render.attachNewNode('world_node')
+        self.world_node.setPos(-2048, -2048, 0)
+        self.world_node.setScale(0.8119, 0.9245, 1)
+        # 透明度属性とブレンディングを有効にする
+        self.world_node.setTransparency(TransparencyAttrib.MAlpha)
+
         # 座標軸を表示する
         self.axis = self.loader.loadModel('zup-axis')
         self.axis.reparentTo(self.render)
@@ -20,10 +27,10 @@ class MyApp(ShowBase):
 
         # 地面を描画
         self.card = CardMaker('ground')
-        self.card.setFrame(-2048, 2048, -2048, 2048)
-        self.ground = self.render.attachNewNode(self.card.generate())
+        self.card.setFrame(0, 4096, 0, 4096)
+        self.ground = self.world_node.attachNewNode(self.card.generate())
         self.ground.setP(-90)
-        self.ground.setColor(0, 0.5, 0, 1)  # 緑色
+        self.ground.setColor(0, 0.5, 0, 0.5)  # 緑色
 
         # カメラコントローラーを初期化
         self.camera_controller = CameraController(self)
@@ -34,9 +41,7 @@ class MyApp(ShowBase):
         self.render.setLight(self.render.attachNewNode(ambient_light))
 
         # 全てのビルを配置するノード
-        self.buildings_node = self.render.attachNewNode('buildings_node')
-        self.buildings_node.setPos(-2038, -2048, 0)
-        self.buildings_node.setScale(0.8119, 0.9245, 1)
+        self.buildings_node = self.world_node.attachNewNode('buildings_node')
 
         # 建物データをロード
         self.building_list = BuildingDataLoader.load_buildings(z, x, y)
@@ -61,7 +66,7 @@ class MyApp(ShowBase):
                     rect_params,
                     building.centroid,
                     building.height,
-                    color=(0, 1, 1, 1),  # シアン色
+                    color=(0, 1, 1, 0.5),  # シアン色
                     wireframe=self.DRAW_WIREFRAME
                 )
             elif building.simplified_coordinates:
@@ -70,7 +75,7 @@ class MyApp(ShowBase):
                     building.building_node,
                     building.simplified_coordinates,
                     building.height,
-                    color=(1, 0.5, 0, 1),  # オレンジ色
+                    color=(1, 0.5, 0, 0.5),  # オレンジ色
                     wireframe=self.DRAW_WIREFRAME
                 )
             else:
