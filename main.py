@@ -5,7 +5,7 @@ from building.camera import CameraController  # CameraControllerをインポー�
 
 
 class MyApp(ShowBase):
-    min_height = 30  # 表示する建物の最低高さ
+    min_height = 20  # 表示する建物の最低高さ
 
     def __init__(self):
         ShowBase.__init__(self)
@@ -48,6 +48,7 @@ class MyApp(ShowBase):
         self.building_list = BuildingDataLoader.load_buildings(z, x, y)
 
         # 建物データから3Dモデルを作成
+        building_count = 0
         for building in self.building_list:
             # ビル用のノードを作成し、名前をIDに設定
             building.building_node = self.buildings_node.attachNewNode(str(building.id))
@@ -56,15 +57,21 @@ class MyApp(ShowBase):
                 continue
 
             if building.simplified_coordinates_3d:
+                building_count = building_count + 1
                 self.create_building(building.building_node, building.simplified_coordinates_3d, building.height,
                                      color=(1, 0.5, 0, 1), wireframe=DRAW_WIREFRAME)  # オレンジ色
             elif building.simplified_coordinates_4d:
+                building_count = building_count + 1
                 for coords in building.simplified_coordinates_4d:
                     self.create_building(building.building_node, coords, building.height, color=(0, 1, 1, 1),
                                          wireframe=DRAW_WIREFRAME)  # 水色
             else:
                 # 座標がない場合はスキップ
                 continue
+        print(f"Total buildings: {building_count}")
+
+        print(f'Polygon vertices: {BuildingDataLoader.vertex_count}')
+        print(f'Simplified polygon vertices: {BuildingDataLoader.simplified_vertex_count}')
 
         self.accept('escape', exit)
 

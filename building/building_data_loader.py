@@ -8,6 +8,9 @@ import math
 
 
 class BuildingDataLoader:
+    vertex_count = 0
+    simplified_vertex_count = 0
+
     @staticmethod
     def load_buildings(z, x, y):
 
@@ -78,20 +81,25 @@ class BuildingDataLoader:
 
     @staticmethod
     def process_coordinates(coords):
-        from shapely.geometry import Polygon, LinearRing, Point
-
         # シェイプリーのポリゴンを作成
         linear_ring = LinearRing(coords[0])
         polygon = Polygon(linear_ring)
 
+        # 簡略化の度合いを設定（値が大きいほど頂点数が減少）
+        tolerance = 30  # 必要に応じて調整
+
         # ポリゴンの簡略化
-        simplified_polygon = polygon
-        # simplified_polygon = polygon.simplify(0.0001, preserve_topology=True)
-        # simplified_polygon = polygon.simplify(0.2, preserve_topology=False)
+        # simplified_polygon = polygon
+        simplified_polygon = polygon.simplify(tolerance, preserve_topology=True)
         # simplified_polygon = polygon.convex_hull
         # # 頂点数を制限して簡略化
         # simplified_polygon = BuildingDataLoader.simplify_polygon_to_target_vertices(polygon, target_vertices=6)
 
+        # 結果を表示
+        print("元の頂点数:", len(polygon.exterior.coords))
+        print("簡略化後の頂点数:", len(simplified_polygon.exterior.coords))
+        BuildingDataLoader.vertex_count = BuildingDataLoader.vertex_count + len(polygon.exterior.coords)
+        BuildingDataLoader.simplified_vertex_count = BuildingDataLoader.simplified_vertex_count + len(simplified_polygon.exterior.coords)
 
         # 簡略化した座標を取得
         simplified_coords = [list(simplified_polygon.exterior.coords)]
