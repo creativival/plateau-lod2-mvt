@@ -84,8 +84,8 @@ class BuildingDataLoader:
         tolerance = 30  # 必要に応じて調整
 
         # ポリゴンの簡略化
-        simplified_polygon = polygon
-        # simplified_polygon = polygon.simplify(tolerance, preserve_topology=True)
+        # simplified_polygon = polygon
+        simplified_polygon = polygon.simplify(tolerance, preserve_topology=True)
         # simplified_polygon = polygon.convex_hull
 
         # 簡略化した座標を取得

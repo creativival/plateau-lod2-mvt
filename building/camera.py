@@ -1,9 +1,5 @@
 from direct.showbase.DirectObject import DirectObject
-from panda3d.core import WindowProperties, CollisionTraverser, CollisionNode, CollisionHandlerPusher, CollisionRay, \
-    BitMask32
-from direct.task import Task
-from direct.actor.Actor import Actor
-from panda3d.core import CollisionSphere
+from panda3d.core import WindowProperties
 
 
 class CameraController(DirectObject):
@@ -116,6 +112,10 @@ class CameraController(DirectObject):
         if self.key_map['right']:
             camera_x = camera_x + x_direction.x * speed
             camera_y = camera_y + x_direction.y * speed
+        if self.key_map['up']:
+            camera_z = camera_z + speed
+        if self.key_map['down']:
+            camera_z = camera_z - speed
 
         self.camera.setPos(camera_x, camera_y, camera_z)
 

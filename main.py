@@ -70,14 +70,16 @@ class MyApp(ShowBase):
                     wireframe=self.DRAW_WIREFRAME
                 )
             elif building.simplified_coordinates:
-                not_rect_building_count += 1
-                self.create_building(
-                    building.building_node,
-                    building.simplified_coordinates,
-                    building.height,
-                    color=(1, 0.5, 0, 0.5),  # オレンジ色
-                    wireframe=self.DRAW_WIREFRAME
-                )
+
+                if len(building.simplified_coordinates[0]) >= 4:
+                    not_rect_building_count += 1
+                    self.create_building(
+                        building.building_node,
+                        building.simplified_coordinates,
+                        building.height,
+                        color=(1, 0.5, 0, 0.5),  # オレンジ色
+                        wireframe=self.DRAW_WIREFRAME
+                    )
             else:
                 # 座標がない場合はスキップ
                 continue
@@ -177,6 +179,7 @@ class MyApp(ShowBase):
         return box_node
 
     def create_building(self, building_node, coords_list, height, color=(1, 1, 1, 1), wireframe=False):
+        # print(f"coords count: {len(coords_list[0])}")
         # 上面のポリゴンを作成
         top_geom = self.create_polygon_geom(coords_list, color)
         top_node = GeomNode('top_face')
@@ -238,7 +241,10 @@ class MyApp(ShowBase):
         num_vertices = len(coords)
         # ポリゴンが閉じていない場合は、最初の頂点を末尾に追加
         if coords[0] != coords[-1]:
+            print("Closing polygon")
             coords.append(coords[0])
+        else:
+            print("Polygon is closed")
 
         idx = 0
         tris = GeomTriangles(Geom.UHStatic)
@@ -270,7 +276,37 @@ class MyApp(ShowBase):
 
 
 if __name__ == '__main__':
+    # 渋谷駅のタイル座標
+    # ズームレベル 10: x=909, y=403
+    # ズームレベル 11: x=1818, y=806
+    # ズームレベル 12: x=3637, y=1613
+    # ズームレベル 13: x=7274, y=3226
+    # ズームレベル 14: x=14549, y=6452
+    # ズームレベル 15: x=29099, y=12905
+    # ズームレベル 16: x=58199, y=25811
+    # ズームレベル17: x_tile = 116440, y_tile = 51574
+    # ズームレベル18: x_tile = 232880, y_tile = 103148
+    # ズームレベル19: x_tile = 465760, y_tile = 206297
+    # ズームレベル20: x_tile = 931520, y_tile = 412595
     # タイル座標を指定
+    Z = 10
+    X = 909
+    Y = 403
+    Z = 11
+    X = 1818
+    Y = 806
+    Z = 12
+    X = 3637
+    Y = 1613
+    Z = 13
+    X = 7274
+    Y = 3226
+    Z = 14
+    X = 14549
+    Y = 6452
+    Z = 15
+    X = 29099
+    Y = 12905
     Z = 16
     X = 58199
     Y = 25811
