@@ -5,6 +5,7 @@ class Building:
         self.id = id
         self.coordinates = coordinates
         self.height = height
+        self.original_height = height  # 元の高さを保存
 
         # 簡略化した座標を保持する属性
         self.simplified_coordinates = None
@@ -21,7 +22,10 @@ class Building:
         self.bounding_circle_radius = None
 
         # ビルノード
-        self.building_node = None
+        self.node = None
+
+        # ビルの色
+        self.color = (1, 1, 1, 1)  # デフォルトの色（白）
 
     def __str__(self):
         return (f"Building(id={self.id}, height={self.height}, "

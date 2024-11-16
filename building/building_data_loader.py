@@ -1,6 +1,7 @@
 from mapbox_vector_tile import decode
 import os
 import math
+from PIL import Image
 from .building import Building
 # 必要なインポートを追加
 from shapely.geometry import Polygon, MultiPolygon, LinearRing, Point
@@ -12,6 +13,14 @@ class BuildingDataLoader:
     all_building_count = 0
     rect_building_count = 0
     not_rect_building_count = 0
+    # クラス変数として画像をロード
+    # flag_image = Image.open('images/flag_usa.png')
+    # flag_image = Image.open('images/flag_japan.png')
+    # flag_image = Image.open('images/milkmaid.jpg')
+    flag_image = Image.open('images/monna_lisa.jpg')
+    # flag_image = Image.open('images/scream.jpg')
+    # flag_image = Image.open('images/sunflowers.jpg')
+    image_width, image_height = flag_image.size
 
     @staticmethod
     def load_buildings(z, x, y):
@@ -71,6 +80,10 @@ class BuildingDataLoader:
         building.bounding_circle_radius = radius
         # 長方形パラメータを設定
         building.rect_width, building.rect_height, building.rect_angle = rect_params
+
+        # ビルの重心から色を取得して設定
+        color = BuildingDataLoader.get_color_from_image(centroid[0], centroid[1])
+        building.color = color
 
         return building
 
@@ -166,4 +179,38 @@ class BuildingDataLoader:
             return 1 + max(BuildingDataLoader.get_list_depth(item) for item in lst)
         else:
             return 0
+
+    @staticmethod
+    def get_color_from_image(x, y):
+        """
+        ビルの重心座標（x, y）から画像の対応する色を取得します。
+        座標系は左下が原点で、画像の左下が原点であると仮定します。
+        """
+        # 例：ビルの座標範囲を取得し、画像のサイズにマッピングする
+        x_min, x_max = 0, 4096
+        y_min, y_max = 0, 4096
+
+        # 座標をピクセル座標にマッピング
+        pixel_x = int((x - x_min) / (x_max - x_min) * BuildingDataLoader.image_width)
+        pixel_y = int((y - y_min) / (y_max - y_min) * BuildingDataLoader.image_height)
+
+        # 画像の範囲内に収まるように調整
+        pixel_x = max(0, min(BuildingDataLoader.image_width - 1, pixel_x))
+        pixel_y = max(0, min(BuildingDataLoader.image_height - 1, pixel_y))
+
+        # 画像のY軸は上が0なので、上下反転する必要がある
+        pixel_y = BuildingDataLoader.image_height - pixel_y - 1
+
+        # ピクセルの色を取得
+        color = BuildingDataLoader.flag_image.getpixel((pixel_x, pixel_y))
+
+        # RGBA値を0〜1の範囲に正規化
+        if len(color) == 4:
+            r, g, b, a = color
+        else:
+            r, g, b = color
+            a = 255
+
+        return (r / 255.0, g / 255.0, b / 255.0, a / 255.0)
+
 

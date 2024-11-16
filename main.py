@@ -1,7 +1,12 @@
 from direct.showbase.ShowBase import ShowBase
 from panda3d.core import *
 from building.building_data_loader import BuildingDataLoader
-from building.camera import CameraController  # CameraControllerをインポート
+from building.camera import CameraController
+import threading
+import math
+from building.sound import Sound
+from direct.task import Task
+from queue import Empty
 
 
 class MyApp(ShowBase):
@@ -12,6 +17,13 @@ class MyApp(ShowBase):
 
     def __init__(self, z, x, y):
         ShowBase.__init__(self)
+
+        # ウインドウの設定
+        self.props = WindowProperties()
+        self.props.setTitle('Plateau Building Viewer')
+        self.props.setSize(1800, 1200)  # ウインドウサイズは環境に合わせて調整する。
+        self.win.requestProperties(self.props)
+        self.setBackgroundColor(0, 0, 0)  # ウインドウの背景色を黒 (0, 0, 0) に設定。
 
         # 全てを配置するノード
         self.world_node = self.render.attachNewNode('world_node')
@@ -53,20 +65,21 @@ class MyApp(ShowBase):
         for building in self.building_list:
             building_count += 1
             # ビル用のノードを作成し、名前をIDに設定
-            building.building_node = self.buildings_node.attachNewNode(str(building.id))
+            building.node = self.buildings_node.attachNewNode(str(building.id))
 
-            # if building.height < self.min_height:
-            #     continue
+            if building.height < self.min_height:
+                continue
 
             if building.rect_width is not None:
                 rect_params = (building.rect_width, building.rect_height, building.rect_angle)
                 rect_building_count += 1
                 self.create_rect_building(
-                    building.building_node,
+                    building.node,
                     rect_params,
                     building.centroid,
                     building.height,
-                    color=(0, 1, 1, 0.5),  # シアン色
+                    # color=(0, 1, 1, 0.5),  # シアン色
+                    color=building.color,  # シアン色
                     wireframe=self.DRAW_WIREFRAME
                 )
             elif building.simplified_coordinates:
@@ -74,10 +87,11 @@ class MyApp(ShowBase):
                 if len(building.simplified_coordinates[0]) >= 4:
                     not_rect_building_count += 1
                     self.create_building(
-                        building.building_node,
+                        building.node,
                         building.simplified_coordinates,
                         building.height,
-                        color=(1, 0.5, 0, 0.5),  # オレンジ色
+                        # color=(1, 0.5, 0, 0.5),  # オレンジ色
+                        color=building.color,  # オレンジ色
                         wireframe=self.DRAW_WIREFRAME
                     )
             else:
@@ -95,6 +109,15 @@ class MyApp(ShowBase):
 
         print(f'Polygon vertices: {BuildingDataLoader.vertex_count}')
         print(f'Simplified polygon vertices: {BuildingDataLoader.simplified_vertex_count}')
+
+        # Soundクラスを初期化
+        self.sound = Sound("sound/Dive_To_Mod.mp3")
+        # サウンドの再生を別スレッドで開始
+        self.sound_thread = threading.Thread(target=self.sound.play)
+        self.sound_thread.start()
+
+        # ビルの高さを更新するタスクを追加
+        self.taskMgr.doMethodLater(0.1, self.update_buildings_task, 'UpdateBuildingsTask')
 
         self.accept('escape', exit)
 
@@ -274,6 +297,43 @@ class MyApp(ShowBase):
         geom.addPrimitive(tris)
         return geom
 
+    def update_buildings_task(self, task):
+        if not self.sound.is_playing.is_set() and self.sound.amplitude_queue.empty():
+            return Task.done  # サウンドの再生が終了したらタスクを停止
+
+        try:
+            # 振幅データを取得
+            amplitude = self.sound.amplitude_queue.get_nowait()
+        except Empty:
+            # 振幅データがまだない場合は次のフレームへ
+            return Task.cont
+
+        # 振幅を正規化（0〜1の範囲）
+        max_amplitude = 32768  # int16の最大値
+        normalized_amplitude = amplitude / max_amplitude
+
+        # 現在の時間を取得
+        current_time = globalClock.getFrameTime()
+
+        # 波のパラメータ
+        wave_length = 500  # 波の長さ（空間的な波長）
+        wave_speed = 2  # 波の速度（値を調整して波の進行速度を変える）
+        wave_height_scale = 300  # 波の高さを調整するスケール
+
+        # ビルの高さを更新
+        for building in self.building_list:
+            x, y = building.centroid
+            # 波の位相を計算
+            phase = (x + y) / wave_length - wave_speed * current_time
+            # 波の高さを計算
+            wave_height = normalized_amplitude * math.sin(phase) * wave_height_scale + 100
+
+            # ビルの高さを更新
+            if building.node:
+                building.node.setSz(max(wave_height, 1))  # 最小高さを1に設定
+
+        return Task.cont  # タスクを継続
+
 
 if __name__ == '__main__':
     # 渋谷駅のタイル座標
@@ -284,29 +344,26 @@ if __name__ == '__main__':
     # ズームレベル 14: x=14549, y=6452
     # ズームレベル 15: x=29099, y=12905
     # ズームレベル 16: x=58199, y=25811
-    # ズームレベル17: x_tile = 116440, y_tile = 51574
-    # ズームレベル18: x_tile = 232880, y_tile = 103148
-    # ズームレベル19: x_tile = 465760, y_tile = 206297
-    # ズームレベル20: x_tile = 931520, y_tile = 412595
+
     # タイル座標を指定
-    Z = 10
-    X = 909
-    Y = 403
-    Z = 11
-    X = 1818
-    Y = 806
-    Z = 12
-    X = 3637
-    Y = 1613
-    Z = 13
-    X = 7274
-    Y = 3226
-    Z = 14
-    X = 14549
-    Y = 6452
-    Z = 15
-    X = 29099
-    Y = 12905
+    # Z = 10
+    # X = 909
+    # Y = 403
+    # Z = 11
+    # X = 1818
+    # Y = 806
+    # Z = 12
+    # X = 3637
+    # Y = 1613
+    # Z = 13
+    # X = 7274
+    # Y = 3226
+    # Z = 14
+    # X = 14549
+    # Y = 6452
+    # Z = 15
+    # X = 29099
+    # Y = 12905
     Z = 16
     X = 58199
     Y = 25811
