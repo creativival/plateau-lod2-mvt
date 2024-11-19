@@ -6,7 +6,7 @@ class CameraController(DirectObject):
     heading_angular_velocity = 1500
     pitch_angular_velocity = 500
     max_pitch_angle = 60
-    min_pitch_angle = -30
+    min_pitch_angle = -60
 
     def __init__(self, base):
         self.base = base

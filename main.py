@@ -15,21 +15,22 @@ class MyApp(ShowBase):
     # DRAW_WIREFRAME = True  # Trueにするとワイヤーフレーム、Falseにすると面を描画
     DRAW_WIREFRAME = False  # Trueにするとワイヤーフレーム、Falseにすると面を描画
     min_height = 0  # 表示する建物の最低高さ
-    # SOUND_PATH = 'sound/Dive_To_Mod.mp3'
-    IMAGE_PATH = 'images/flag_japan.png'
-    SOUND_PATH = 'sound/kimigayo.mp3'
-    IMAGE_PATH = 'images/flag_usa.png'
-    SOUND_PATH = 'sound/star_spangled_banner.mp3'
-    IMAGE_PATH = 'images/rocky.png'
-    SOUND_PATH = 'sound/rocky_thema.mp3'
+    IMAGE_PATH = 'images/techno_pop_music.png'
+    SOUND_PATH = 'sound/Dive_To_Mod.mp3'
+    # IMAGE_PATH = 'images/flag_japan.png'
+    # SOUND_PATH = 'sound/kimigayo.mp3'
+    # IMAGE_PATH = 'images/flag_usa.png'
+    # SOUND_PATH = 'sound/star_spangled_banner.mp3'
+    # IMAGE_PATH = 'images/rocky.png'
+    # SOUND_PATH = 'sound/rocky_thema.mp3'
 
     def __init__(self, z, x, y):
         ShowBase.__init__(self)
 
         # ウインドウの設定
         self.props = WindowProperties()
-        self.props.setTitle('Plateau Sound Visualization')
-        self.props.setSize(1800, 1200)  # ウインドウサイズは環境に合わせて調整する。
+        self.props.setTitle('Plateau Urban Equalizer')
+        self.props.setSize(1600, 900)  # ウインドウサイズは環境に合わせて調整する。
         self.win.requestProperties(self.props)
         self.setBackgroundColor(0, 0, 0)  # ウインドウの背景色を黒 (0, 0, 0) に設定。
 
