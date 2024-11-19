@@ -3,8 +3,9 @@
 import numpy as np
 from pydub import AudioSegment
 import sounddevice as sd
-from queue import Queue, Empty
+from queue import Queue
 import threading
+
 
 class Sound:
     def __init__(self, file_path, chunk_size=1024, update_interval=0.1):

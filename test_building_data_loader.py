@@ -1,11 +1,11 @@
-from building.building_data_loader import BuildingDataLoader
+from building.data_loader import DataLoader
 
 
 if __name__ == '__main__':
     z = 16
     x = 58199
     y = 25811
-    building_list = BuildingDataLoader.load_buildings(z, x, y)
+    building_list = DataLoader.load_buildings(z, x, y)
 
     if building_list:
         for building in building_list[:20]:  # 最初の5件を表示
